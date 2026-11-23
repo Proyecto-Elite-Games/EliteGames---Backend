@@ -14,6 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.enums.user_role import UserRole
 from app.infrastructure.database.base import Base
 
+
 def utc_now_naive() -> datetime:
     """
     Obtiene la fecha y hora UTC sin información de zona horaria,
@@ -120,4 +121,20 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True
+    )
+
+    client_profile = relationship(
+        "ClientProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    employee_profile = relationship(
+        "EmployeeProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

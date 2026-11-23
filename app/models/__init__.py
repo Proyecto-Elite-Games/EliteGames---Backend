@@ -1,6 +1,11 @@
 from app.infrastructure.database.base import Base
 from app.models.user import User
 from app.models.user_session import UserSession
+from app.models.client_profile import ClientProfile
+from app.models.employee_profile import EmployeeProfile
+from app.models.procedure import Procedure
+from app.models.procedure_session import ProcedureSession
+from app.models.appointment import Appointment
 from app.models.usuario import Usuario
 from app.models.administrador import Administrador
 from app.models.proveedor import Proveedor
@@ -22,6 +27,11 @@ __all__ = [
     "Base",
     "User",
     "UserSession",
+    "ClientProfile",
+    "EmployeeProfile",
+    "Procedure",
+    "ProcedureSession",
+    "Appointment",
     "Usuario",
     "Administrador",
     "Proveedor",
