@@ -5,18 +5,99 @@ Rutas de autenticación de EliteGames.
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+import jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import bearer_scheme, get_current_user
+from app.core.config import settings
 from app.infrastructure.database.session import get_db
 from app.models.user import User
 from app.models.user_session import UserSession
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    MessageResponse,
+    RegisterRequest,
+    ResendCodeRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    VerifyCodeRequest,
+)
 from app.schemas.user import UserResponse
-from app.services.auth_service import AuthenticationError, authenticate_user
+from app.services.auth_service import (
+    AuthFlowError,
+    AuthenticationError,
+    authenticate_user,
+    register_gamer_request,
+    request_password_reset,
+    resend_verification_code,
+    reset_password_with_code,
+    verify_gamer_code,
+)
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+
+@router.post("/registro", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    data: RegisterRequest,
+    db: Session = Depends(get_db),
+):
+    """Registra una cuenta gamer pendiente y envía código de verificación."""
+    try:
+        msg = register_gamer_request(
+            db=db,
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=str(data.email),
+            password=data.password,
+            phone=data.phone,
+        )
+        return MessageResponse(message=msg)
+    except AuthFlowError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+
+@router.post("/verificar", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def verify_code(
+    data: VerifyCodeRequest,
+    db: Session = Depends(get_db),
+):
+    """Verifica la cuenta con el código de 6 dígitos y crea el usuario."""
+    try:
+        return verify_gamer_code(
+            db=db,
+            email=str(data.email),
+            code=data.code,
+        )
+    except AuthFlowError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+
+@router.post("/reenviar-codigo", response_model=MessageResponse)
+def resend_code(
+    data: ResendCodeRequest,
+    db: Session = Depends(get_db),
+):
+    """Genera y envía un nuevo código de verificación de 6 dígitos."""
+    try:
+        msg = resend_verification_code(
+            db=db,
+            email=str(data.email),
+        )
+        return MessageResponse(message=msg)
+    except AuthFlowError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -47,6 +128,40 @@ def login(
         )
 
 
+@router.post("/recuperar", response_model=MessageResponse)
+def forgot_password(
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Solicita un código de 6 dígitos de recuperación de contraseña."""
+    msg = request_password_reset(
+        db=db,
+        email=str(data.email),
+    )
+    return MessageResponse(message=msg)
+
+
+@router.post("/restablecer", response_model=MessageResponse)
+def reset_password(
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Define una nueva contraseña usando el código de 6 dígitos."""
+    try:
+        msg = reset_password_with_code(
+            db=db,
+            email=str(data.email),
+            code=data.code,
+            new_password=data.new_password,
+        )
+        return MessageResponse(message=msg)
+    except AuthFlowError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+
 @router.get("/me", response_model=UserResponse)
 def get_my_profile(
     current_user: User = Depends(get_current_user),
@@ -67,9 +182,6 @@ def logout(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No autorizado.",
         )
-
-    import jwt
-    from app.core.config import settings
 
     try:
         payload = jwt.decode(

@@ -23,6 +23,19 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     SESSION_INACTIVITY_MINUTES: int = 30
 
+    # Configuración de correo (SMTP Gmail) y recuperación de contraseña
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_NAME: str = "Elite Games"
+    RESET_TOKEN_EXPIRE_MINUTES: int = 15
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Envío de correo por API HTTP (Resend)
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+
 
 @lru_cache
 def get_settings() -> Settings:
